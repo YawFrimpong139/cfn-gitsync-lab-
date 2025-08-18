@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "IAM Lab: Users, Groups, and One-Time Password via Secrets Manager (Git sync)"
+
+Resources:
+  OneTimePassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${AWS::StackName}/one-time-password"
+      Description: "One-time console password for lab users (JSON key: password)"
+      GenerateSecretString:
+        SecretStringTemplate: '{"note":"shared one-time password"}'
+        GenerateStringKey: password
+        PasswordLength: 16
+        RequireEachIncludedType: true
+
+  S3ReadOnlyGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Sub "${AWS::StackName}-S3ReadOnly"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
+
+  EC2ReadOnlyGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Sub "${AWS::StackName}-EC2ReadOnly"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
+        - arn:aws:iam::aws:policy/IAMUserChangePassword
+
+  S3User:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: Yaws3-user
+      Path: /
+      Groups:
+        - !Ref S3ReadOnlyGroup
+      LoginProfile:
+        Password: !Sub "{{resolve:secretsmanager:${OneTimePassword}:SecretString:password}}"
+        PasswordResetRequired: true
+
+  EC2User:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: Yawec2-user
+      Path: /
+      Groups:
+        - !Ref EC2ReadOnlyGroup
+      LoginProfile:
+        Password: !Sub "{{resolve:secretsmanager:${OneTimePassword}:SecretString:password}}"
+        PasswordResetRequired: true
+
+Outputs:
+  SecretArn:
+    Description: "Secrets Manager ARN that stores the one-time password (key: password)"
+    Value: !Ref OneTimePassword
+
+  AccountSignInURL:
+    Description: "AWS Console sign-in URL for this account"
+    Value: !Sub "https://${AWS::AccountId}.signin.aws.amazon.com/console"
