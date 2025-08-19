@@ -51,6 +51,17 @@ Resources:
         Password: !Sub "{{resolve:secretsmanager:${OneTimePassword}:SecretString:password}}"
         PasswordResetRequired: true
 
+  NanaEC2User:
+   Type: AWS::IAM::User
+   Properties:
+     UserName: nanaec2-user
+     Path: /
+     Groups:
+       - !Ref EC2ReadOnlyGroup
+     LoginProfile:
+       Password: !Sub "{{resolve:secretsmanager:${OneTimePassword}:SecretString:password}}"
+       PasswordResetRequired: true
+       
 Outputs:
   SecretArn:
     Description: "Secrets Manager ARN that stores the one-time password (key: password)"
